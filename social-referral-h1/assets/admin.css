@@ -1,0 +1,83 @@
+/* Social Referral H1 Modifier – Admin Styles */
+
+.srh1-wrap h2 {
+	margin-top: 2em;
+}
+
+/* Platforms table */
+.srh1-platforms-table {
+	border-collapse: collapse;
+	width: 100%;
+}
+
+.srh1-platforms-table thead tr th {
+	padding: 8px 12px;
+	background: #f0f0f1;
+	border-bottom: 1px solid #c3c4c7;
+	text-align: left;
+}
+
+.srh1-platforms-table tbody tr td {
+	padding: 10px 12px;
+	border-bottom: 1px solid #f0f0f1;
+	vertical-align: top;
+}
+
+.srh1-platforms-table tbody tr:last-child td {
+	border-bottom: none;
+}
+
+.srh1-detection-info code {
+	font-size: 12px;
+}
+
+/* Toggle switch */
+.srh1-toggle {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	cursor: pointer;
+}
+
+.srh1-toggle input[type="checkbox"] {
+	opacity: 0;
+	width: 0;
+	height: 0;
+	position: absolute;
+}
+
+/* Hide the hidden "0" input visually */
+.srh1-toggle input[type="hidden"] {
+	display: none;
+}
+
+.srh1-toggle-slider {
+	display: inline-block;
+	width: 40px;
+	height: 22px;
+	background-color: #ccc;
+	border-radius: 22px;
+	transition: background-color 0.2s;
+	position: relative;
+	flex-shrink: 0;
+}
+
+.srh1-toggle-slider::before {
+	content: "";
+	position: absolute;
+	height: 16px;
+	width: 16px;
+	left: 3px;
+	top: 3px;
+	background-color: #fff;
+	border-radius: 50%;
+	transition: transform 0.2s;
+}
+
+.srh1-toggle input[type="checkbox"]:checked + .srh1-toggle-slider {
+	background-color: #2271b1;
+}
+
+.srh1-toggle input[type="checkbox"]:checked + .srh1-toggle-slider::before {
+	transform: translateX(18px);
+}
