@@ -1,11 +1,15 @@
 <?php
 /**
- * Detects the social media platform from the current HTTP request.
+ * Detects social media and ad platform referrals from the current HTTP request.
  *
- * Detection order (highest → lowest priority):
- *   1. UTM source parameter  (?utm_source=facebook)
- *   2. Platform-specific click ID parameters (fbclid, twclid, etc.)
- *   3. HTTP Referer header domain match
+ * Detection priority (highest → lowest):
+ *   1. Ad platforms  — Google Ads, Meta Ads (paid signals take precedence)
+ *   2. Social platforms — Facebook, Instagram, Twitter/X, LinkedIn, Pinterest, TikTok, YouTube
+ *
+ * Within each group, signals are checked in this order:
+ *   a. UTM source parameter  (?utm_source=…)
+ *   b. Platform click ID parameters (?gclid=…, ?fbclid=…, etc.)
+ *   c. HTTP Referer domain match
  *
  * @package Social_Referral_H1
  */
@@ -17,37 +21,160 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Social_Referral_Detector {
 
 	/**
-	 * Attempt to identify a social platform from the current request.
-	 *
-	 * @param array $platforms Configured platform definitions.
-	 * @return string|null Platform key on match, null otherwise.
+	 * UTM medium values that indicate paid/ad traffic.
 	 */
-	public function detect( array $platforms ) {
-		// 1. UTM source.
-		$utm_source = isset( $_GET['utm_source'] ) ? sanitize_key( $_GET['utm_source'] ) : '';
+	const PAID_MEDIUMS = array( 'cpc', 'ppc', 'paid', 'paid_search', 'paid_social', 'display', 'cpv', 'cpm', 'remarketing', 'retargeting' );
+
+	/**
+	 * Attempt to identify the referral source from the current request.
+	 *
+	 * @param array $options Full plugin options (social_platforms, ad_platforms, …).
+	 * @return array|null  ['group' => 'ad'|'social', 'key' => string] or null.
+	 */
+	public function detect( array $options ) {
+		$utm_source = isset( $_GET['utm_source'] ) ? strtolower( sanitize_key( $_GET['utm_source'] ) ) : '';
+		$utm_medium = isset( $_GET['utm_medium'] ) ? strtolower( sanitize_key( $_GET['utm_medium'] ) ) : '';
+		$is_paid    = in_array( $utm_medium, self::PAID_MEDIUMS, true );
+
+		$referer      = isset( $_SERVER['HTTP_REFERER'] ) ? esc_url_raw( wp_unslash( $_SERVER['HTTP_REFERER'] ) ) : '';
+		$referer_host = $referer ? strtolower( (string) wp_parse_url( $referer, PHP_URL_HOST ) ) : '';
+
+		// --- 1. Ad platforms (checked before social to avoid misclassification) ---
+		if ( ! empty( $options['ad_platforms'] ) ) {
+			$result = $this->detect_ad_platform(
+				$options['ad_platforms'],
+				$utm_source,
+				$utm_medium,
+				$is_paid,
+				$referer_host
+			);
+			if ( $result ) {
+				return array( 'group' => 'ad', 'key' => $result );
+			}
+		}
+
+		// --- 2. Social platforms ---
+		if ( ! empty( $options['social_platforms'] ) ) {
+			$result = $this->detect_social_platform(
+				$options['social_platforms'],
+				$utm_source,
+				$referer_host
+			);
+			if ( $result ) {
+				return array( 'group' => 'social', 'key' => $result );
+			}
+		}
+
+		return null;
+	}
+
+	// -------------------------------------------------------------------------
+	// Ad platform detection
+	// -------------------------------------------------------------------------
+
+	/**
+	 * @param array  $ad_platforms Configured ad platform definitions.
+	 * @param string $utm_source
+	 * @param string $utm_medium
+	 * @param bool   $is_paid
+	 * @param string $referer_host
+	 * @return string|null Platform key on match.
+	 */
+	private function detect_ad_platform( array $ad_platforms, $utm_source, $utm_medium, $is_paid, $referer_host ) {
+		foreach ( $ad_platforms as $key => $config ) {
+			if ( empty( $config['enabled'] ) ) {
+				continue;
+			}
+
+			switch ( $key ) {
+				case 'google_ads':
+					if ( $this->is_google_ads( $utm_source, $is_paid ) ) {
+						return $key;
+					}
+					break;
+
+				case 'meta_ads':
+					if ( $this->is_meta_ads( $utm_source, $is_paid, $referer_host ) ) {
+						return $key;
+					}
+					break;
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Google Ads: gclid param, OR utm_source=google with a paid medium.
+	 */
+	private function is_google_ads( $utm_source, $is_paid ) {
+		if ( isset( $_GET['gclid'] ) ) {
+			return true;
+		}
+
+		if ( $is_paid && in_array( $utm_source, array( 'google', 'google_ads', 'googleads' ), true ) ) {
+			return true;
+		}
+
+		return false;
+	}
+
+	/**
+	 * Meta Ads: fbclid + paid medium, OR utm_source in Meta family + paid medium.
+	 *
+	 * Organic fbclid (no paid medium) is left for social Facebook detection.
+	 */
+	private function is_meta_ads( $utm_source, $is_paid, $referer_host ) {
+		$meta_utm_sources = array( 'facebook', 'fb', 'instagram', 'ig', 'meta' );
+
+		if ( $is_paid && in_array( $utm_source, $meta_utm_sources, true ) ) {
+			return true;
+		}
+
+		// fbclid with a paid medium = paid Meta traffic.
+		if ( $is_paid && isset( $_GET['fbclid'] ) ) {
+			return true;
+		}
+
+		return false;
+	}
+
+	// -------------------------------------------------------------------------
+	// Social platform detection
+	// -------------------------------------------------------------------------
+
+	/**
+	 * @param array  $social_platforms Configured social platform definitions.
+	 * @param string $utm_source
+	 * @param string $referer_host
+	 * @return string|null Platform key on match.
+	 */
+	private function detect_social_platform( array $social_platforms, $utm_source, $referer_host ) {
+		// a. UTM source.
 		if ( $utm_source ) {
-			foreach ( $platforms as $key => $config ) {
-				if ( ! empty( $config['enabled'] ) && $this->utm_matches( $utm_source, $key, $config ) ) {
+			foreach ( $social_platforms as $key => $config ) {
+				if ( empty( $config['enabled'] ) ) {
+					continue;
+				}
+				if ( $this->utm_matches( $utm_source, $key, $config ) ) {
 					return $key;
 				}
 			}
 		}
 
-		// 2. Platform click ID parameters.
-		foreach ( $platforms as $key => $config ) {
-			if ( empty( $config['enabled'] ) ) {
+		// b. Platform click ID params.
+		foreach ( $social_platforms as $key => $config ) {
+			if ( empty( $config['enabled'] ) || empty( $config['click_id_param'] ) ) {
 				continue;
 			}
-			if ( ! empty( $config['click_id_param'] ) && isset( $_GET[ $config['click_id_param'] ] ) ) {
+			if ( isset( $_GET[ $config['click_id_param'] ] ) ) {
 				return $key;
 			}
 		}
 
-		// 3. HTTP Referer.
-		$referer = isset( $_SERVER['HTTP_REFERER'] ) ? esc_url_raw( $_SERVER['HTTP_REFERER'] ) : '';
-		if ( $referer ) {
-			$referer_host = strtolower( wp_parse_url( $referer, PHP_URL_HOST ) );
-			foreach ( $platforms as $key => $config ) {
+		// c. HTTP Referer.
+		if ( $referer_host ) {
+			foreach ( $social_platforms as $key => $config ) {
 				if ( empty( $config['enabled'] ) ) {
 					continue;
 				}
@@ -61,25 +188,16 @@ class Social_Referral_Detector {
 	}
 
 	/**
-	 * Check whether a UTM source value matches a platform.
-	 *
-	 * @param string $utm_source Sanitised UTM source value.
-	 * @param string $key        Platform key (e.g. 'facebook').
-	 * @param array  $config     Platform configuration.
-	 * @return bool
+	 * Check whether a UTM source value matches a platform key or its aliases.
 	 */
 	private function utm_matches( $utm_source, $key, array $config ) {
-		// Direct key match.
 		if ( $utm_source === $key ) {
 			return true;
 		}
 
-		// Match against any utm_aliases defined for the platform.
-		if ( ! empty( $config['utm_aliases'] ) ) {
-			foreach ( $config['utm_aliases'] as $alias ) {
-				if ( $utm_source === strtolower( $alias ) ) {
-					return true;
-				}
+		foreach ( $config['utm_aliases'] ?? array() as $alias ) {
+			if ( $utm_source === strtolower( $alias ) ) {
+				return true;
 			}
 		}
 
@@ -87,21 +205,13 @@ class Social_Referral_Detector {
 	}
 
 	/**
-	 * Check whether a referer host matches any of a platform's domains.
-	 *
-	 * @param string $referer_host Lowercase hostname from referer.
-	 * @param array  $config       Platform configuration.
-	 * @return bool
+	 * Check whether a referer hostname matches a platform's domain list.
+	 * Matches exact domain or any subdomain.
 	 */
 	private function referer_matches( $referer_host, array $config ) {
-		if ( empty( $config['domains'] ) || ! is_array( $config['domains'] ) ) {
-			return false;
-		}
-
-		foreach ( $config['domains'] as $domain ) {
+		foreach ( $config['domains'] ?? array() as $domain ) {
 			$domain = strtolower( $domain );
-			// Match exact domain or any subdomain.
-			if ( $referer_host === $domain || substr( $referer_host, -( strlen( $domain ) + 1 ) ) === '.' . $domain ) {
+			if ( $referer_host === $domain || str_ends_with( $referer_host, '.' . $domain ) ) {
 				return true;
 			}
 		}

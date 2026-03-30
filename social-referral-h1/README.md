@@ -1,13 +1,12 @@
 # Social Referral H1 Modifier
 
-A WordPress plugin that detects social media referral traffic and dynamically adds custom text to the H1 heading on your landing pages.
+A WordPress plugin that detects where a visitor came from — a social media platform or a paid ad campaign — and dynamically adds custom text to the H1 heading on your landing pages.
 
 ## Installation
 
-1. Copy the `social-referral-h1/` folder into your WordPress `wp-content/plugins/` directory.
-2. Log in to the WordPress admin and go to **Plugins**.
-3. Activate **Social Referral H1 Modifier**.
-4. Go to **Settings → Social Referral H1** to configure the plugin.
+1. Copy the `social-referral-h1/` folder into `wp-content/plugins/`.
+2. In the WordPress admin go to **Plugins** and activate **Social Referral H1 Modifier**.
+3. Go to **Settings → Social Referral H1** to configure the plugin.
 
 ---
 
@@ -15,56 +14,69 @@ A WordPress plugin that detects social media referral traffic and dynamically ad
 
 ### Detection
 
-When a visitor arrives on your site, the plugin checks for a social platform signal in this priority order:
+When a visitor arrives, the plugin checks for a referral signal in this priority order:
 
-| Priority | Method | Example |
-|----------|--------|---------|
-| 1 | UTM source parameter | `?utm_source=facebook` |
-| 2 | Platform click ID parameter | `?fbclid=…` |
-| 3 | HTTP Referer domain match | Browser referred from `facebook.com` |
+| Priority | Group | Method | Example |
+|----------|-------|--------|---------|
+| 1 | **Ad platform** | UTM source + paid medium | `?utm_source=google&utm_medium=cpc` |
+| 1 | **Ad platform** | Platform click ID + paid medium | `?fbclid=…&utm_medium=paid_social` |
+| 1 | **Ad platform** | Google click ID param | `?gclid=…` |
+| 2 | **Social** | UTM source parameter | `?utm_source=facebook` |
+| 2 | **Social** | Platform click ID param | `?fbclid=…` (no paid medium) |
+| 2 | **Social** | HTTP Referer domain | Browser referred from `facebook.com` |
 
-Once a platform is detected it is stored in a **30-minute cookie**, so the H1 addition persists even if the visitor is redirected (e.g. by a UTM-stripping redirect).
+Ad platforms are checked first so that paid Facebook/Instagram traffic is correctly identified as **Meta Ads** rather than organic social.
+
+The detected platform is stored in a **30-minute cookie**, so the H1 addition persists even if the visitor passes through a redirect (e.g. a UTM-stripping redirect).
 
 ### H1 Modification
 
-After detection, the plugin uses output buffering to intercept the full page HTML and inserts the configured text into the **first `<h1>` tag** on the page. The addition is wrapped in `<span class="srh1-addition">` so you can target it with CSS if needed.
+After detection, the plugin uses output buffering to intercept the full page HTML and inserts the configured text into the **first `<h1>` tag**. The addition is wrapped in `<span class="srh1-addition">` so you can target it with CSS.
 
 ---
 
 ## Configuration
 
-All settings are found at **Settings → Social Referral H1** in the WordPress admin.
+All settings are at **Settings → Social Referral H1**.
 
-### H1 Addition
+### Display
 
 | Setting | Description |
 |---------|-------------|
-| **Text to Add** | The text inserted into the H1. Use `{platform}` as a placeholder for the detected platform name — e.g. `Welcome from {platform}!` becomes `Welcome from Facebook!`. |
-| **Position** | **Before** inserts the text before the existing H1 content. **After** (default) appends it after. |
+| **Position** | **Before** inserts the text before the existing H1 content. **After** (default) appends it. |
 
 ### Target Pages
 
-Controls which pages the H1 modification is applied to:
-
 | Option | Behaviour |
 |--------|-----------|
-| **Landing pages** *(default)* | All singular pages and posts (`is_singular()`). Excludes archives, the blog index, search results, etc. |
+| **Landing pages** *(default)* | All singular pages and posts. Excludes archives, the blog index, search results, etc. |
 | **All pages** | Every page on the site. |
-| **Specific pages** | Only the pages whose IDs you enter (comma-separated). Example: `42, 57, 103`. |
+| **Specific pages** | Only the pages whose IDs you enter (comma-separated, e.g. `42, 57, 103`). |
+
+### Ad Platforms
+
+Each ad platform has its own editable H1 text and an enable/disable toggle.
+
+| Platform | H1 Text (default) | Detected via |
+|----------|-------------------|--------------|
+| **Google Ads** | `Welcome, Google Ads visitor!` | `gclid` URL param, or `utm_source=google` + paid `utm_medium` |
+| **Meta Ads** | `Welcome, Meta Ads visitor!` | `fbclid` + paid `utm_medium`, or `utm_source` ∈ {facebook, fb, instagram, ig, meta} + paid `utm_medium` |
+
+**Paid `utm_medium` values recognised:** `cpc`, `ppc`, `paid`, `paid_search`, `paid_social`, `display`, `cpv`, `cpm`, `remarketing`, `retargeting`.
 
 ### Social Platforms
 
-Enable or disable detection for each platform individually using the toggle switches. The table also shows exactly what signals are used for each platform.
+Each platform has its own editable H1 text and an enable/disable toggle.
 
-| Platform | UTM source values | Click ID param | Referrer domains |
-|----------|-------------------|----------------|-----------------|
-| Facebook | `facebook`, `fb` | `fbclid` | facebook.com, fb.com, l.facebook.com, m.facebook.com |
-| Instagram | `instagram`, `ig` | `igshid` | instagram.com, l.instagram.com |
-| Twitter / X | `twitter`, `x` | `twclid` | twitter.com, x.com, t.co |
-| LinkedIn | `linkedin` | — | linkedin.com, lnkd.in |
-| Pinterest | `pinterest` | — | pinterest.com, pin.it |
-| TikTok | `tiktok`, `tt` | `ttclid` | tiktok.com, vm.tiktok.com |
-| YouTube | `youtube`, `yt` | — | youtube.com, youtu.be, m.youtube.com |
+| Platform | H1 Text (default) | UTM source | Click ID | Referrer domains |
+|----------|-------------------|------------|----------|-----------------|
+| **Facebook** | `Welcome from Facebook!` | `facebook`, `fb` | `fbclid` | facebook.com, fb.com, l.facebook.com, m.facebook.com |
+| **Instagram** | `Welcome from Instagram!` | `instagram`, `ig` | `igshid` | instagram.com, l.instagram.com |
+| **Twitter / X** | `Welcome from Twitter / X!` | `twitter`, `x` | `twclid` | twitter.com, x.com, t.co |
+| **LinkedIn** | `Welcome from LinkedIn!` | `linkedin` | — | linkedin.com, lnkd.in |
+| **Pinterest** | `Welcome from Pinterest!` | `pinterest` | — | pinterest.com, pin.it |
+| **TikTok** | `Welcome from TikTok!` | `tiktok`, `tt` | `ttclid` | tiktok.com, vm.tiktok.com |
+| **YouTube** | `Welcome from YouTube!` | `youtube`, `yt` | — | youtube.com, youtu.be, m.youtube.com |
 
 ---
 
@@ -76,13 +88,13 @@ The inserted text is wrapped in a `<span>` with the class `srh1-addition`:
 <h1>Our Landing Page <span class="srh1-addition">Welcome from Facebook!</span></h1>
 ```
 
-You can style it in your theme's CSS:
+Add CSS to your theme to style it:
 
 ```css
 .srh1-addition {
     font-size: 0.6em;
-    color: #1877f2;
     font-weight: normal;
+    color: #1877f2; /* Facebook blue */
 }
 ```
 
@@ -92,18 +104,18 @@ You can style it in your theme's CSS:
 
 ```
 social-referral-h1/
-├── social-referral-h1.php              # Main plugin file — bootstraps the plugin
+├── social-referral-h1.php                    # Plugin bootstrap and main class
 ├── includes/
-│   ├── class-social-referral-detector.php   # Detects platform from UTM, click IDs, and referer
-│   ├── class-h1-modifier.php                # Modifies the first H1 via output buffering
+│   ├── class-social-referral-detector.php   # Referral detection (ad + social)
+│   ├── class-h1-modifier.php                # H1 modification via output buffering
 │   └── class-admin-settings.php            # Admin settings page and option handling
 └── assets/
-    └── admin.css                            # Styles for the admin settings page
+    └── admin.css                            # Admin page styles
 ```
 
 ---
 
 ## Requirements
 
-- WordPress 5.0 or later
-- PHP 7.4 or later
+- WordPress 5.9 or later
+- PHP 8.0 or later

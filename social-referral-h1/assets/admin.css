@@ -1,37 +1,77 @@
-/* Social Referral H1 Modifier – Admin Styles */
+/* Social Referral H1 Modifier – Admin Styles v2 */
 
-.srh1-wrap h2 {
-	margin-top: 2em;
+/* -----------------------------------------------------------------------
+   Layout
+------------------------------------------------------------------------ */
+
+.srh1-wrap .srh1-intro {
+	color: #50575e;
+	margin-bottom: 1.5em;
 }
 
-/* Platforms table */
-.srh1-platforms-table {
+.srh1-section-heading {
+	margin-top: 2em;
+	padding-bottom: 6px;
+	border-bottom: 1px solid #c3c4c7;
+}
+
+/* -----------------------------------------------------------------------
+   Platform tables
+------------------------------------------------------------------------ */
+
+.srh1-platform-table {
 	border-collapse: collapse;
+	margin-top: 12px;
+	table-layout: fixed;
 	width: 100%;
 }
 
-.srh1-platforms-table thead tr th {
-	padding: 8px 12px;
-	background: #f0f0f1;
-	border-bottom: 1px solid #c3c4c7;
+.srh1-platform-table thead th {
+	background: #f6f7f7;
+	border-bottom: 2px solid #c3c4c7;
+	font-weight: 600;
+	padding: 10px 12px;
 	text-align: left;
 }
 
-.srh1-platforms-table tbody tr td {
+.srh1-platform-table tbody td {
 	padding: 10px 12px;
-	border-bottom: 1px solid #f0f0f1;
-	vertical-align: top;
+	vertical-align: middle;
 }
 
-.srh1-platforms-table tbody tr:last-child td {
-	border-bottom: none;
+/* Column widths */
+.srh1-col-platform { width: 14%; }
+.srh1-col-enabled  { width: 8%;  text-align: center; }
+.srh1-col-text     { width: 34%; }
+.srh1-col-detect   { width: 44%; color: #50575e; font-size: 13px; }
+
+.srh1-platform-table thead .srh1-col-enabled {
+	text-align: center;
 }
 
-.srh1-detection-info code {
+/* H1 text input fills its cell */
+.srh1-h1-input {
+	width: 100% !important;
+	box-sizing: border-box;
+}
+
+/* Detection info spans */
+.srh1-detect-row {
+	display: block;
+	line-height: 1.8;
+}
+
+.srh1-detect-row code {
 	font-size: 12px;
+	background: #f0f0f1;
+	padding: 1px 4px;
+	border-radius: 3px;
 }
 
-/* Toggle switch */
+/* -----------------------------------------------------------------------
+   Toggle switch
+------------------------------------------------------------------------ */
+
 .srh1-toggle {
 	position: relative;
 	display: inline-flex;
@@ -39,16 +79,15 @@
 	cursor: pointer;
 }
 
+.srh1-toggle input[type="hidden"] {
+	display: none;
+}
+
 .srh1-toggle input[type="checkbox"] {
 	opacity: 0;
 	width: 0;
 	height: 0;
 	position: absolute;
-}
-
-/* Hide the hidden "0" input visually */
-.srh1-toggle input[type="hidden"] {
-	display: none;
 }
 
 .srh1-toggle-slider {
@@ -72,6 +111,7 @@
 	background-color: #fff;
 	border-radius: 50%;
 	transition: transform 0.2s;
+	box-shadow: 0 1px 2px rgba(0,0,0,.25);
 }
 
 .srh1-toggle input[type="checkbox"]:checked + .srh1-toggle-slider {
@@ -80,4 +120,9 @@
 
 .srh1-toggle input[type="checkbox"]:checked + .srh1-toggle-slider::before {
 	transform: translateX(18px);
+}
+
+.srh1-toggle input[type="checkbox"]:focus-visible + .srh1-toggle-slider {
+	outline: 2px solid #2271b1;
+	outline-offset: 2px;
 }
